@@ -1,0 +1,118 @@
+---
+title: "SCFA analysis and visualization, Figure 4"
+author: "Kaitlyn Barrack and Rebecca Valls"
+date: "2023-7-26"
+output: html_document
+---
+#Bring in the data
+```{r}
+library(readr)
+
+SCFA_metadata <- read_csv("SCFA_forplot.csv", 
+    col_types = cols(Concentration = col_number()))
+
+SCFA_metadata.df <- as.data.frame(SCFA_metadata)
+colnames(SCFA_metadata.df)
+
+```
+
+Plot Concentration on y axis over treatment for each treatment group
+```{r}
+#organize your groups to be in order
+SCFA_metadata.df$Genotype <- factor(SCFA_metadata.df$Genotype, levels=c("CF", "nonCF"))
+SCFA_metadata.df$Medium <- factor(SCFA_metadata.df$Medium, levels=c("MiPro", "low_CF", "median_CF"))
+SCFA_metadata.df$Metabolite <- factor(SCFA_metadata.df$Metabolite, levels = c("Acetate", "Butyrate", "Propionate"))
+
+SCFA_metadata.df_CF <- subset(SCFA_metadata.df, Genotype == 'CF')
+SCFA_metadata.df_nonCF <- subset(SCFA_metadata.df, Genotype == 'nonCF')
+
+SCFA_metadata.df_CF_acetate <- subset(SCFA_metadata.df_CF, Metabolite == 'Acetate')
+SCFA_metadata.df_CF_buty <- subset(SCFA_metadata.df_CF, Metabolite == 'Butyrate')
+SCFA_metadata.df_CF_prp <- subset(SCFA_metadata.df_CF, Metabolite == 'Propionate')
+
+SCFA_metadata.df_nonCF_acetate <- subset(SCFA_metadata.df_nonCF, Metabolite == 'Acetate')
+SCFA_metadata.df_nonCF_buty <- subset(SCFA_metadata.df_nonCF, Metabolite == 'Butyrate')
+SCFA_metadata.df_nonCF_prp <- subset(SCFA_metadata.df_nonCF, Metabolite == 'Propionate')
+
+SCFA_metadata.df_CF_D5 <- subset(SCFA_metadata.df_CF, Day_of_passage == '5')
+SCFA_metadata.df_nonCF_D5 <- subset(SCFA_metadata.df_nonCF, Day_of_passage == '5')
+
+SCFA_metadata.df_nonCF5_acetate <- subset(SCFA_metadata.df_nonCF_D5, Metabolite == 'Acetate')
+SCFA_metadata.df_nonCF5_buty <- subset(SCFA_metadata.df_nonCF_D5, Metabolite == 'Butyrate')
+SCFA_metadata.df_nonCF5_prp <- subset(SCFA_metadata.df_nonCF_D5, Metabolite == 'Propionate')
+
+SCFA_metadata.df_CF5_acetate <- subset(SCFA_metadata.df_CF_D5, Metabolite == 'Acetate')
+SCFA_metadata.df_CF5_buty <- subset(SCFA_metadata.df_CF_D5, Metabolite == 'Butyrate')
+SCFA_metadata.df_CF5_prp <- subset(SCFA_metadata.df_CF_D5, Metabolite == 'Propionate')
+
+library(ggplot2)
+
+ggplot(SCFA_metadata.df, aes(y = Concentration, x = Day_of_passage, fill = Medium))+
+         geom_smooth()+
+         facet_grid(rows = "Metabolite", scales = "free")+
+  scale_fill_viridis_d()+
+   theme_linedraw()+
+   theme(strip.text.y = element_text(size = 15))
+
+pdf("CFMiPro_SCFA_bymetabolite.pdf",
+    width = 14, height = 7)
+dev.off()
+
+ggplot(SCFA_metadata.df, aes(y = Concentration, x = Day_of_passage, fill = Medium))+
+         geom_smooth()+
+         facet_grid(~Genotype+Metabolite, scales = "free")+
+  labs(y="Concentration(ng/mL) normalized to Anaerobic CFU", x="Day of passage")+
+  scale_fill_viridis_d()+
+   theme_linedraw()+
+  xlim(1,5)+
+   theme(strip.text.y = element_text(size = 10))+
+  theme(strip.text.x = element_text(size = 10))+
+  theme(legend.title = element_text(size=10))+
+  theme(legend.text = element_text(size=10))+
+  theme(axis.text.x=element_blank())+
+  guides(fill=guide_legend(title="Medium"))
+
+dev.off()
+
+#Mixed effect for each metabolite within each genotype, accounting for patient as a random variable - used for Fig 4
+
+summary(lmer(Concentration ~ Medium + Day_of_passage + (1|Patient), data=SCFA_metadata.df_CF_acetate))
+summary(lmer(Concentration ~ Medium + Day_of_passage + (1|Patient), data=SCFA_metadata.df_CF_buty))
+summary(lmer(Concentration ~ Medium + Day_of_passage + (1|Patient), data=SCFA_metadata.df_CF_prp))
+
+summary(lmer(Concentration ~ Medium + Day_of_passage + (1|Patient), data=SCFA_metadata.df_nonCF_acetate))
+summary(lmer(Concentration ~ Medium + Day_of_passage + (1|Patient), data=SCFA_metadata.df_nonCF_buty))
+summary(lmer(Concentration ~ Medium + Day_of_passage + (1|Patient), data=SCFA_metadata.df_nonCF_prp))
+
+#Plotting Day 5 concentrations
+ggplot(SCFA_metadata.df_nonCF_D5, aes(y = Concentration, x = Metabolite, color = Medium))+
+         geom_boxplot()+
+         geom_jitter()+
+         facet_grid()+
+         scale_fill_viridis_d()+
+  labs(y="Concentration(ng/mL) normalized to Anaerobic CFU", x="Metabolite")+
+  scale_color_viridis_d()+
+   theme_linedraw()+
+   theme(strip.text.y = element_text(size = 15))
+
+ggplot(SCFA_metadata.df_CF_D5, aes(y = Concentration, x = Metabolite, color = Medium))+
+         geom_boxplot()+
+         geom_jitter()+
+         facet_grid()+
+         scale_fill_viridis_d()+
+  labs(y="Concentration(ng/mL) normalized to Anaerobic CFU", x="Metabolite")+
+  scale_color_viridis_d()+
+   theme_linedraw()+
+   theme(strip.text.y = element_text(size = 15))
+
+#mixed effects for day 5
+summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_CF5_acetate))
+summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_CF5_buty))
+summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_CF5_prp))
+
+summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_nonCF5_acetate))
+summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_nonCF5_buty))
+summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_nonCF5_prp))
+
+
+```
