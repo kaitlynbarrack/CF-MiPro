@@ -1,0 +1,83 @@
+---
+title: "SCFA_PCA"
+Author: Kaitlyn Barrack
+output: html_document
+date: '2023-07-26'
+---
+
+
+
+#Load required packages
+install.packages("vegan")
+install.packages("ggplot2")
+install.packages("scatterplot3d")
+
+library(vegan)
+library(ggplot2)
+library(viridis)
+
+
+data_all <- read.table("SCFA_forPCA.csv", header=TRUE, sep=",")
+row.names(data_all) <- data_all$Sample_Name
+
+SCFA <- data_all[, c("Acetate", "Butyrate", "Propionate")]
+
+#Subset Day 5 df by genotype
+data_all5[data_all$Day_of_passage == '5',]
+data_all_CF5 <- subset(data_all5, Genotype == 'CF')
+data_all_nonCF5 <- subset(data_all5, Genotype == 'nonCF')
+
+SCFA_CF5 <- data_all_CF5[, c("Acetate", "Butyrate", "Propionate")]
+SCFA_nonCF5 <- data_all_nonCF5[, c("Acetate", "Butyrate", "Propionate")]
+
+#Distance matrix
+dist_matrix_CF5 <- vegdist(SCFA_CF5, method= "bray")
+dist_matrix_nonCF5 <- vegdist(SCFA_nonCF5, method= "bray")
+
+pcoa_CF5 <- cmdscale(dist_matrix_CF5, k = ncol(SCFA_CF5), eig = TRUE, add = TRUE)
+pcoa_nonCF5 <- cmdscale(dist_matrix_nonCF5, k = ncol(SCFA_nonCF5), eig = TRUE, add = TRUE)
+
+scores_CF5 <- data.frame(Sample = row.names(pcoa_CF5$points), PC1 = pcoa_CF5$points[,1], PC2 = pcoa_CF5$points[,2])
+scores_nonCF5 <- data.frame(Sample = row.names(pcoa_nonCF5$points), PC1 = pcoa_nonCF5$points[,1], PC2 = pcoa_nonCF5$points[,2])
+
+#organize data
+scores_nonCF5$Patient <- factor(data_all_nonCF5$Patient)
+scores_nonCF5$Medium <- factor(data_all_nonCF5$Medium)
+scores_nonCF5$Medium <- factor(data_all_nonCF5$Medium, levels=c("MiPro", "low_CF", "median_CF"))
+scores_nonCF5$Day <- factor(data_all_nonCF5$Day_of_passage)
+
+scores_CF5$Patient <- factor(data_all_CF5$Patient)
+scores_CF5$Medium <- factor(data_all_CF5$Medium)
+scores_CF5$Medium <- factor(data_all_CF5$Medium, levels=c("MiPro", "low_CF", "median_CF"))
+scores_CF5$Day <- factor(data_all_CF5$Day_of_passage)
+
+ggplot(scores_CF5, aes(x=PC1, y=PC2, color=Medium))+
+  scale_color_viridis(discrete=TRUE)+
+  theme_bw()+
+  facet_grid()+
+  stat_ellipse(show.legend = TRUE)+
+  geom_point(size=3)+
+  ggtitle("PCA plot")+
+  xlab(paste0("PC1 (", round(pcoa_CF5$eig[1]*100/sum(pcoa_CF5$eig),2), "%)"))+
+  ylab(paste0("PC2 (", round(pcoa_CF5$eig[2]*100/sum(pcoa_CF5$eig),2), "%)"))
+
+ggplot(scores_nonCF5, aes(x=PC1, y=PC2, color=Medium))+
+  scale_color_viridis(discrete=TRUE)+
+  theme_bw()+
+  facet_grid()+
+  stat_ellipse(show.legend = TRUE)+
+  geom_point(size=3)+
+  ggtitle("PCA plot")+
+  xlab(paste0("PC1 (", round(pcoa_nonCF5$eig[1]*100/sum(pcoa_nonCF5$eig),2), "%)"))+
+  ylab(paste0("PC2 (", round(pcoa_nonCF5$eig[2]*100/sum(pcoa_nonCF5$eig),2), "%)"))
+  
+
+
+#PERMANOVA tests
+
+adonis2(dist_matrix_nonCF5 ~ Medium, data= scores_nonCF5, method='bray')
+adonis2(dist_matrix_nonCF5 ~ Patient, data= scores_nonCF5, method='bray')
+
+adonis2(dist_matrix_CF5 ~ Medium, data= scores_CF5, method='bray')
+adonis2(dist_matrix_CF5 ~ Patient, data= scores_CF5, method='bray')
+
