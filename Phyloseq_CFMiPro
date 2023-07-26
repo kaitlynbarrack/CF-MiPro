@@ -1,3 +1,10 @@
+---
+title: "Phyloseq_CFMiPro"
+author: Kaitlyn Barrack
+output: html_document
+date: '2023-07-26'
+---
+
 #install libraries 
 ```{r}
 library("phyloseq"); packageVersion("phyloseq") #1.40.0
