@@ -1,0 +1,570 @@
+#install libraries 
+```{r}
+library("phyloseq"); packageVersion("phyloseq") #1.40.0
+library("ggplot2"); packageVersion("ggplot2") #3.4.2
+library(readr)
+```
+
+We now construct a phyloseq object directly from the dada2 outputs.
+
+```{r}
+
+count_tab <- read.table("~/Desktop/CFMiPro_ASVs_counts.tsv", header=T, row.names=1, check.names=F, sep="\t")
+
+ASV_counts <- as.matrix(count_tab)
+ASV_counts.df <- as.data.frame(ASV_counts)
+
+library("readxl")
+install.packages("xlsx")                            
+library("xlsx")  
+
+#ASVs_taxonomy.tsv is Table S1
+asv_tax <- read.delim("~/Desktop/ASVs_taxonomy.tsv", header=FALSE, fill=TRUE, row.names = 1)
+asv_tax.df <- asv_tax
+#Assign column names as the titles in row 1
+colnames(asv_tax.df) <- asv_tax[1, ]  
+#Drop row 1
+asv_tax.df <- asv_tax.df[-1,]       
+
+asv_taxm <- as.matrix(asv_tax.df)
+
+#make ASV_counts numeric
+ASV_countsn <- lapply(ASV_counts.df, as.numeric)
+
+#remove unwanted text from column names
+for ( col in 1:ncol(ASV_counts.df)){
+    colnames(ASV_counts.df)[col] <-  sub("_S.*", "", colnames(ASV_counts.df)[col])
+}
+
+```
+
+#Drag in your metadata file (Table S2) on colonoscopy samples and make the sample names the row names
+```{r}
+library(readr)
+CFMiPro_metadata <- read_csv("~/Desktop/TableS2_SampleMeta.csv")
+
+library(tidyverse)
+install.packages("lubridate")
+library(lubridate)
+install.packages("dplyr")
+library(dplyr)
+install.packages("tidyverse")
+library(tidyverse)
+
+CFMiPro_metadata <- CFMiPro_metadata %>% remove_rownames %>% column_to_rownames(var="Sample_Name")
+
+CFMiPro_metadata$Medium <- factor(CFMiPro_metadata$Medium, levels=c("MiPro", "low_CF", "median_CF"))
+
+```
+
+We now construct a phyloseq object directly from the dada2 outputs.
+
+```{r}
+install.packages("phyloseq")
+library(phyloseq)
+
+CFMiPro_phyloseq <- phyloseq(otu_table(ASV_counts.df, taxa_are_rows=TRUE), 
+               sample_data(CFMiPro_metadata), 
+               tax_table(asv_taxm))
+
+#check the phyloseq object to make sure your samples align
+```
+
+
+#Visualize alpha-diversity:
+```{r}
+library(ggpubr)
+library(viridis)
+
+plot_richness(CFMiPro_phyloseq, measures=c("Shannon"))
+
+plot_richness(CFMiPro_phyloseq, x="Day_of_passage", color = "Medium", measures=c("Shannon"))+
+  geom_smooth(aes(color=Medium))+
+  scale_color_viridis_d()
+
+plot_richness(CFMiPro_phyloseq, x="Day_of_passage", color = "Medium", measures=c("Shannon"))+
+  geom_smooth(aes(color=Medium))+
+  facet_grid(~Genotype)+
+  scale_color_viridis_d()+
+  labs(y="Shannon Diversity Index (SDI)", x="Day of passage")+
+  theme(axis.text=element_text(size=8), 
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title=element_text(size=12,face="bold"), 
+        legend.text=element_text(size=12), 
+        legend.title=element_text(size=12, face="bold"))
+
+plot_richness(CFMiPro_phyloseq, x="Day_of_passage", color = "Medium", measures=c("Chao1"))+
+  geom_smooth(aes(color=Medium))+
+  facet_grid(~Genotype)+
+  scale_color_viridis_d()+
+  labs(y="Chao-1", x="Day of passage")+
+  theme(axis.text=element_text(size=8), 
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title=element_text(size=12,face="bold"), 
+        legend.text=element_text(size=12), 
+        legend.title=element_text(size=12, face="bold"))
+
+#Exporting the Data
+
+library(tibble)
+install.packages("readxl")
+install.packages("writexl")
+library(readxl)
+library("writexl")
+
+pdf("CFMiPro_Passaging_Shannon.pdf",
+    width = 20, height = 7)
+dev.off()
+
+CFMiPro_phyloseq_Shannon.df <- as.data.frame(estimate_richness(CFMiPro_phyloseq, measures="Shannon"))
+
+write_xlsx(CFMiPro_phyloseq_Shannon.df,"~/Desktop/CFMiPro_Shannon")
+
+CFMiPro_phyloseq_Chao1.df <- as.data.frame(estimate_richness(CFMiPro_phyloseq, measures="Chao1"))
+
+write_xlsx(CFMiPro_phyloseq_Chao1.df,"~/Desktop/CFMiPro_Chao1")
+
+
+#Load in Shannon data
+
+#Merge tables or...
+library(dplyr)
+
+Shannon_meta <- merge(CFMiPro_phyloseq_Shannon.df, CFMiPro_metadata, by = 'row.names')
+rownames(Shannon_meta) <- Shannon_meta$Row.names
+Shannon_meta.df <- as.data.frame(Shannon_meta)
+
+#...Load from computer                         
+Shannon_meta <- read.csv("CFMiPro_Shannon.csv", row.names = 1) 
+Shannon_meta.df <- as.data.frame(Shannon_meta)
+colnames(Shannon_meta.df)
+
+Shannon_meta.df$Medium <- factor(Shannon_meta.df$Medium, levels=c("MiPro", "low_CF", "median_CF"))
+
+Shannon_meta.df_Day0 <- subset(Shannon_meta.df, Day_of_passage == '0')
+Shannon_meta.df_MiProDay0 <- subset(Shannon_meta.df_Day0, Medium == 'MiPro')
+Shannon_meta.df_CF <- subset(Shannon_meta.df, Genotype == 'CF')
+Shannon_meta.df_CF_MiPro <- subset(Shannon_meta.df_CF, Medium == 'MiPro')
+Shannon_meta.df_nonCF <- subset(Shannon_meta.df, Genotype == 'nonCF')
+Shannon_meta.df_nonCF_MiPro <- subset(Shannon_meta.df_nonCF, Medium == 'MiPro')
+
+ggplot(Shannon_meta.df_MiProDay0, aes(y = Shannon, x = Genotype, color = Genotype))+
+         geom_boxplot()+
+         geom_jitter()+
+         facet_grid()+
+  labs(y="Shannon Diversity Index")+
+  scale_color_viridis_d()+
+   theme_linedraw()+
+   theme(strip.text.y = element_text(size = 30))+
+   theme(axis.text=element_text(size=8), 
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title=element_text(size=12,face="bold"), 
+        legend.text=element_text(size=12), 
+        legend.title=element_text(size=12, face="bold"))
+
+#Statistical analysis
+summary(lm(Shannon ~ Genotype, data= Shannon_meta.df_MiProDay0))
+
+install.packages("lme4")
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(sjPlot)
+
+#Plotting all points to see if data is linear
+ggplot(Shannon_meta.df, aes(y = Shannon, x = rownames(Shannon_meta.df), color = Medium))+
+         geom_smooth(method="lm")+
+         stat_summary(fun.data=mean_cl_normal) +
+        facet_grid(~Genotype)+
+  labs(y="Shannon Diversity Index")+
+  scale_color_viridis_d()+
+   theme_linedraw()+
+   theme(strip.text.y = element_text(size = 30))
+
+#linear model- all features account for (R2)% of variance
+summary(lm(Shannon ~ Medium + Day_of_passage + Patient, data= Shannon_meta.df_CF))
+#adj. R2=0.4735
+summary(lm(Shannon ~ Medium + Day_of_passage + Patient, data= Shannon_meta.df_nonCF))
+#adj. R2=0.4832
+
+#Statistics for Figure 1B
+summary(lmer(Shannon ~ Day_of_passage + (1|Patient), data=Shannon_meta.df_CF))
+#Mediumlow_CF     -0.4026     0.1001 151.0000  -4.020 9.15e-05 ***
+#Mediummedian_CF  -0.6923     0.1001 151.0000  -6.913 1.25e-10 ***
+#Day_of_passage  -0.10055    0.02616 152.00000  -3.843 0.000178 ***
+
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_nonCF))
+#Mediumlow_CF     -0.27903    0.05622 219.00000  -4.963 1.39e-06 ***
+#Mediummedian_CF  -0.56689    0.05622 219.00000 -10.083  < 2e-16 ***
+#Day_of_passage  -0.03965    0.01600 220.00000  -2.478    0.014 *  
+
+#Table S3
+lmer_Shannon_CF_MiPro <- lmer(Shannon ~ Day_of_passage + (1|Patient), data=Shannon_meta.df_CF_MiPro)
+summary(lmer_Shannon_CF_MiPro)
+tab_model(lmer_Shannon_CF_MiPro)
+
+#Table S4
+lmer_Shannon_nonCF_MiPro <- lmer(Shannon ~ Day_of_passage + (1|Patient), data=Shannon_meta.df_nonCF_MiPro)
+summary(lmer_Shannon_nonCF_MiPro)
+tab_model(lmer_Shannon_nonCF_MiPro)
+
+#Load Chao1 data
+
+#Merge tables or...
+Chao_meta <- merge(CFMiPro_phyloseq_Chao1.df, CFMiPro_metadata, by = 'row.names')
+rownames(Chao_meta) <- Chao_meta$Row.names
+Chao_meta.df <- as.data.frame(Chao_meta)
+colnames(Chao_meta.df)
+
+#Load from computer
+Chao_meta <- read.csv("CFMiPro_Chao1.csv", row.names = 1) 
+Chao_meta.df <- as.data.frame(Chao_meta)
+colnames(Chao_meta.df)
+
+Chao_meta.df_Day0 <- subset(Chao_meta.df, Day_of_passage == '0')
+Chao_meta.df_MiProDay0 <- subset(Chao_meta.df_Day0, Medium == 'MiPro')
+Chao_meta.df_CF <- subset(Chao_meta.df, Genotype == 'CF')
+Chao_meta.df_nonCF <- subset(Chao_meta.df, Genotype == 'nonCF')
+Chao_meta.df_CF_MiPro <- subset(Chao_meta.df_CF, Medium == 'MiPro')
+Chao_meta.df_nonCF_MiPro <- subset(Chao_meta.df_nonCF, Medium == 'MiPro')
+
+Chao_meta.df_CF$Medium <- factor(Chao_meta.df_CF$Medium, levels=c("MiPro", "low_CF", "median_CF"))
+Chao_meta.df_nonCF$Medium <- factor(Chao_meta.df_nonCF$Medium, levels=c("MiPro", "low_CF", "median_CF"))
+
+ggplot(Chao_meta.df_MiProDay0, aes(y = Chao1, x = Genotype, color = Genotype))+
+         geom_boxplot()+
+         geom_jitter()+
+         facet_grid()+
+  labs(y="Chao-1")+
+  scale_color_viridis_d()+
+   theme_linedraw()+
+   theme(strip.text.y = element_text(size = 30))+
+   theme(axis.text=element_text(size=8), 
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title=element_text(size=12,face="bold"), 
+        legend.text=element_text(size=12), 
+        legend.title=element_text(size=12, face="bold"))
+
+summary(lm(Chao1 ~ Genotype, data= Chao_meta.df_MiProDay0))
+#p=0.868
+
+#Statistics for Figure 1C
+summary(lmer(Chao1 ~ Medium + (1|Patient), data= Chao_meta.df_CF))
+#Mediumlow_CF     -394.52     108.88  151.00  -3.624 0.000396 ***
+#Mediummedian_CF  -594.25     108.88  151.00  -5.458 1.93e-07 ***
+#Day_of_passage   -96.14      27.38  152.00  -3.511 0.000587 ***
+summary(lmer(Chao1 ~ Medium + (1|Patient), data= Chao_meta.df_nonCF))
+#Mediumlow_CF     -333.22      59.02  219.00  -5.646 5.06e-08 ***
+#Mediummedian_CF  -554.21      59.02  219.00  -9.391  < 2e-16 ***
+#Day_of_passage   -53.25      16.31  220.00  -3.264  0.00127 ** 
+  
+  
+#Table S5
+Chao_CF_MiPro <- lmer(Chao1 ~ Day_of_passage + (1|Patient), data=Chao_meta.df_CF_MiPro)
+summary(Chao_CF_MiPro)
+tab_model(Chao_CF_MiPro)
+
+#Table S6
+Chao_nonCF_MiPro <- lmer(Chao1 ~ Day_of_passage + (1|Patient), data=Chao_meta.df_nonCF_MiPro)
+summary(Chao_nonCF_MiPro)
+tab_model(Chao_nonCF_MiPro)
+
+```
+## Let's make ordination plots out of our phyloseq object
+
+```{r}
+
+library("plyr")
+
+#here we are filtering ASVs that appear at least once in 10% of our samples
+wh0 = genefilter_sample(CFMiPro_phyloseq, filterfun_sample(function(x) x > 1), A=0.1*nsamples(CFMiPro_phyloseq))
+
+CFMiPro_phyloseq_pruned = prune_taxa(wh0, CFMiPro_phyloseq)
+
+#Day0
+CFMiPro_phyloseq_pruned_Day0 <- subset_samples(CFMiPro_phyloseq_pruned, Day_of_passage == '0')
+
+CFMiPro_phyloseq_pruned_Day0MiPro <- subset_samples(CFMiPro_phyloseq_pruned_Day0, Medium == 'MiPro')
+
+wh0_Day0 = genefilter_sample(CFMiPro_phyloseq_pruned_Day0MiPro, filterfun_sample(function(x) x > 1), A=0.1*nsamples(CFMiPro_phyloseq_pruned_Day0MiPro))
+
+phyloseq_Day0_pruned = prune_taxa(wh0_Day0, CFMiPro_phyloseq_pruned_Day0MiPro)
+
+
+
+```
+
+Transform to even sampling depth. Talk about normalization methods.
+Reference: https://www.bioconductor.org/packages/devel/bioc/manuals/microbiomeMarker/man/microbiomeMarker.pdf
+a integer, e.g. 1e6 (default), indicating pre-sample normalization of the sum
+of the values to 1e6
+```{r}
+
+CFMiPro_phyloseq_pruned_transformed = transform_sample_counts(CFMiPro_phyloseq_pruned, function(x) x/sum(x)*100) 
+
+#Day0
+phyloseq_Day0_pruned_transformed = transform_sample_counts(phyloseq_Day0_pruned, function(x) x/sum(x)*100) 
+```
+
+#calculate distance and replot PCoA
+```{r}
+distbc = phyloseq::distance(CFMiPro_phyloseq_pruned_transformed, method = "bray")
+ordbc = ordinate(CFMiPro_phyloseq_pruned_transformed, method = "PCoA", distance = "distbc")
+
+distm = phyloseq::distance(CFMiPro_phyloseq_pruned_transformed, method = "morisita")
+ordm = ordinate(CFMiPro_phyloseq_pruned_transformed, method = "PCoA", distance = "distm")
+
+disth = phyloseq::distance(CFMiPro_phyloseq_pruned_transformed, method = "horn")
+ordh = ordinate(CFMiPro_phyloseq_pruned_transformed, method = "PCoA", distance = "disth")
+
+distj = phyloseq::distance(CFMiPro_phyloseq_pruned_transformed, method = "jaccard")
+ordj = ordinate(CFMiPro_phyloseq_pruned_transformed, method = "PCoA", distance = "distj")
+
+#Day 0 plot
+
+distbc_D0 = phyloseq::distance(phyloseq_Day0_pruned_transformed, method = "bray")
+ordbc_D0 = ordinate(phyloseq_Day0_pruned_transformed, method = "PCoA", distance = "distbc")
+
+PCoA_plot_bray_D0 <- plot_ordination(phyloseq_Day0_pruned_transformed, ordbc_D0, color = "Genotype")+
+  scale_shape(solid=TRUE)+
+  #facet_wrap(~Genotype)+
+  geom_point(size=3, alpha=0.5)+
+  stat_ellipse(show.legend = TRUE)+
+  scale_color_viridis_d()+
+  theme_bw()
+PCoA_plot_bray_D0
+
+#plots
+
+PCoA_plot_bray <- plot_ordination(CFMiPro_phyloseq_pruned_transformed, ordbc, color = "Medium")+
+  scale_shape(solid=TRUE)+
+  facet_wrap(~Genotype)+
+  geom_point(size=3, alpha=0.5)+
+  stat_ellipse(show.legend = TRUE)+
+  scale_color_viridis_d()+
+  theme_bw()
+PCoA_plot_bray
+
+PCoA_plot_mh <- plot_ordination(CFMiPro_phyloseq_pruned_transformed, ordh, color = "Medium")+
+  scale_shape(solid=TRUE)+
+  facet_wrap(~Genotype)+
+  geom_point(size=3, alpha=0.5)+
+  stat_ellipse(show.legend = TRUE)+
+  scale_color_viridis_d()+
+  theme_bw()
+PCoA_plot_mh
+
+PCoA_plot_jaccard <- plot_ordination(CFMiPro_phyloseq_pruned_transformed, ordj, color = "Medium")+
+  scale_shape(solid=TRUE)+
+  facet_wrap(~Genotype)+
+  geom_point(size=3, alpha=0.5)+
+  stat_ellipse(show.legend = TRUE)+
+  scale_color_viridis_d()+
+  theme_bw()
+PCoA_plot_jaccard
+
+##### Running statistics for Beta diversity
+
+library(vegan); packageVersion(vegan) 
+# version 2.5.7 
+# work with ecologocial data (we will use for preparing rarefaction curve)
+
+#run a permanova on the ordination distances to test significance
+#determine p-value
+
+#calculate distance matrix between samples
+bray2 <- phyloseq::distance(CFMiPro_phyloseq_pruned_transformed, "bray")
+head(bray2)
+
+jaccard2 <- phyloseq::distance(CFMiPro_phyloseq_pruned_transformed, "jaccard")
+
+horn2 <- phyloseq::distance(CFMiPro_phyloseq_pruned_transformed, "horn")
+
+#make a data frame from the data
+sampledf <- data.frame(sample_data(CFMiPro_phyloseq_pruned_transformed))
+head(sampledf)
+
+sampledf_CF5 <- data.frame(sample_data(phyloseq_CF5))
+
+#run Adonis test
+
+adonis2(distbc ~ Prep + Medium + Patient + Day_of_passage + Genotype, data = sampledf, method = "bray")
+adonis2(distj ~ Medium + Patient + Day_of_passage + Genotype + Prep, data=sampledf, method= "jaccard")
+adonis2(disth ~ Medium + Patient + Day_of_passage + Genotype + Prep, data=sampledf, method= "horn")
+
+#Make a separate phyloseq object per genotype
+
+phyloseq_nonCF <- subset_samples(CFMiPro_phyloseq_pruned_transformed, Genotype == 'nonCF')       
+phyloseq_CF <- subset_samples(CFMiPro_phyloseq_pruned_transformed, Genotype == 'CF')
+
+#Make a separate phyloseq object for Day 0, MiPro
+phyloseq_Day0 <- subset_samples(CFMiPro_phyloseq_pruned_transformed, Day_of_passage == '0')
+phyloseq_Day0MiPro <- subset_samples(CFMiPro_phyloseq_pruned_transformed, Medium == 'MiPro')
+
+#Day 5 CF only
+phyloseq_CF5 <- subset_samples(phyloseq_CF, Day_of_passage == '5')
+
+bray3 <- phyloseq::distance(phyloseq_CF5, "bray")
+ordbc3 = ordinate(phyloseq_CF5, method = "PCoA", distance = "bray3")
+
+#calculate distance matrix between samples, within each genotype - Suppl Fig 2
+bray_nonCF <- phyloseq::distance(phyloseq_nonCF, "bray")
+bray_CF <- phyloseq::distance(phyloseq_CF, "bray")
+bray_D0 <- phyloseq::distance(phyloseq_Day0MiPro, "bray")
+
+jac_nonCF <- phyloseq::distance(phyloseq_nonCF, "jaccard")
+jac_CF <- phyloseq::distance(phyloseq_CF, "jaccard")
+
+mh_nonCF <- phyloseq::distance(phyloseq_nonCF, "horn")
+mh_CF <- phyloseq::distance(phyloseq_CF, "horn")
+
+#make a data frame from the data
+sampledf_nonCF <- data.frame(sample_data(phyloseq_nonCF))
+head(sampledf_nonCF)
+
+sampledf_CF <- data.frame(sample_data(phyloseq_CF))
+head(sampledf_CF)
+
+sampledf_D0 <- data.frame(sample_data(phyloseq_Day0MiPro))
+head(sampledf_D0)
+
+#PERMANOVA - Fig1
+adonis2(bray_nonCF ~ Patient*Medium*Day_of_passage, data=sampledf_nonCF, method='bray')
+adonis2(bray_CF ~ Prep*Patient*Medium*Day_of_passage, data=sampledf_CF, method='bray')
+
+#Fig S1
+adonis2(bray_D0 ~ Genotype, data=sampledf_D0, method='bray')
+
+#PERMANOVA - Fig S2
+adonis2(jac_nonCF ~ Patient*Medium*Day_of_passage, data=sampledf_nonCF, method='jaccard')
+adonis2(jac_CF ~ Patient*Medium*Day_of_passage, data=sampledf_CF, method='jaccard')
+
+adonis2(mh_nonCF ~ Patient*Medium*Day_of_passage, data=sampledf_nonCF, method='horn')
+adonis2(mh_CF ~ Patient*Medium*Day_of_passage, data=sampledf_CF, method='horn')
+
+#PERMANOVA for CF5 samples to compare Prep - Fig S3
+PCoA_plot_bray3 <- plot_ordination(phyloseq_CF5, ordbc3, color = "Prep")+
+  scale_shape(solid=TRUE)+
+  facet_wrap(~Medium)+
+  geom_point(size=3, alpha=0.5)+
+  stat_ellipse(show.legend = TRUE)+
+  scale_color_viridis_d()+
+  theme_bw()
+PCoA_plot_bray3
+
+adonis2(bray3 ~ Prep*Patient+Medium, data=sampledf_CF5, method='bray')
+
+```
+
+
+```{r}
+phyla_counts_tab_Day0_MiPro <- otu_table(tax_glom(phyloseq_Day0MiPro, taxrank="Phylum"))
+
+# making a vector of Phylum names to set as row names
+phyla_tax_vec <- as.vector(tax_table(tax_glom(phyloseq_Day0MiPro, taxrank="Phylum"))[,2])
+rownames(phyla_counts_tab_Day0_MiPro) <- as.vector(phyla_tax_vec)
+
+dim(phyla_counts_tab_Day0_MiPro)
+
+#make a different file for manipulating
+major_taxa_for_plot_D0_MiPro <- as.data.frame(phyla_counts_tab_Day0_MiPro)
+
+# add a column of the taxa names so that it is within the table
+# transform the table into narrow, or long, format
+major_taxa_for_plot_D0_MiPro$MTaxa <- row.names(major_taxa_for_plot_D0_MiPro)
+major_taxa_for_plot_D0_MiPro.g <- gather(major_taxa_for_plot_D0_MiPro, Sample, Proportion, -MTaxa)
+
+# take a look at the new table
+head(major_taxa_for_plot_D0_MiPro.g)
+
+# now we want a table with metadata for each sample
+
+CFMiPro_metadata_Day0 <- subset(CFMiPro_metadata, Day_of_passage == '0')
+
+CFMiPro_metadata_Day0MiPro <- subset(CFMiPro_metadata, Medium == 'MiPro')
+
+
+sample_info_for_merge_D0<-data.frame("Sample"=row.names(CFMiPro_metadata_Day0MiPro),
+                                     "Genotype" = CFMiPro_metadata_Day0MiPro$Genotype,
+                                  "Patient" =CFMiPro_metadata_Day0MiPro$Patient,
+                                  "Sample Type"=CFMiPro_metadata_Day0MiPro$Type_of_sample,
+                                  stringsAsFactors=F)
+
+# and here we are merging this table with the plotting table we just made
+major_taxa_for_plot_D0_MiPro.g2 <- merge(major_taxa_for_plot_D0_MiPro.g, sample_info_for_merge_D0)
+dim(major_taxa_for_plot_D0_MiPro.g2)
+
+```
+
+```{r}
+#Fig S1G
+
+phyloseq_Day0_pruned.aglo <- tax_glom(phyloseq_Day0_pruned, taxrank = "Phylum")
+phyloseq_Day0_pruned.aglo_trans <- transform_sample_counts(phyloseq_Day0_pruned.aglo, function(x) x/sum(x)*100)
+phyloseq_Day0_pruned.aglo_trans_df <- psmelt(phyloseq_Day0_pruned.aglo_trans)
+dat.agr <- aggregate(Abundance ~ Phylum+Genotype, data=phyloseq_Day0_pruned.aglo_trans_df, FUN=mean)
+
+Phylum_RA_Day0 <- ggplot(dat.agr, aes(x=Genotype, y=Abundance, fill=Phylum))+
+  geom_bar(stat="identity")+
+  scale_fill_viridis_d()+
+  theme(strip.text.y = element_text(size = 10))+
+  theme(strip.text.x = element_text(size = 10))+
+  theme(legend.title = element_text(size=10))+
+  theme(legend.text = element_text(size=10))+
+  theme(axis.text.x=element_text(size=10))+
+  guides(fill=guide_legend(title="Phylum"))+
+  labs(x="Genotype", y="Relative Abundance (%)")
+
+Phylum_RA_Day0
+
+
+#Getting average abundances in CF passages: Day 1-5: Tables S3 (phylum), S8 (family), S9 (genus)
+
+#phyloseq object subset by CF only, Days 1-5 only
+load("phyloseq_CF15")
+
+phyloseq_CF15_aglo <- tax_glom(phyloseq_CF15, taxrank = "Phylum")
+phyloseq_CF15_aglo_trans <- transform_sample_counts(phyloseq_CF15_aglo, function(x) x/sum(x)*100)
+phyloseq_CF15_aglo_trans_df <- psmelt(phyloseq_CF15_aglo_trans)
+CF15_dat.agr <- aggregate(Abundance ~ Phylum+Genotype+Medium, data=phyloseq_CF15_aglo_trans_df, FUN=mean)
+#Use these averages for Table S3
+
+phyloseq_CF15_aglo_fam <- tax_glom(phyloseq_CF15, taxrank = "Family")
+phyloseq_CF15_aglo_fam_trans <- transform_sample_counts(phyloseq_CF15_aglo_fam, function(x) x/sum(x)*100)
+phyloseq_CF15_aglo_fam_trans_df <- psmelt(phyloseq_CF15_aglo_fam_trans)
+CF15_dat.agr_fam <- aggregate(Abundance ~ Family+Genotype+Medium, data=phyloseq_CF15_aglo_fam_trans_df, FUN=mean)
+#Use these averages for Table S8
+
+phyloseq_CF15_aglo_gen <- tax_glom(phyloseq_CF15, taxrank = "Genus")
+phyloseq_CF15_aglo_gen_trans <- transform_sample_counts(phyloseq_CF15_aglo_gen, function(x) x/sum(x)*100)
+phyloseq_CF15_aglo_gen_trans_df <- psmelt(phyloseq_CF15_aglo_gen_trans)
+CF15_dat.agr_gen <- aggregate(Abundance ~ Genus+Genotype+Medium, data=phyloseq_CF15_aglo_gen_trans_df, FUN=mean)
+#Use these averages for Table S9
+
+
+#Getting average abundances in nonCF passages: Day 1-5: Tables S3 (phylum), S8 (family), S9 (genus)
+
+#phyloseq object subset by CF only, Days 1-5 only
+load("phyloseq_nonCF15")
+
+phyloseq_nonCF15_aglo <- tax_glom(phyloseq_nonCF15, taxrank = "Phylum")
+phyloseq_nonCF15_aglo_trans <- transform_sample_counts(phyloseq_nonCF15_aglo, function(x) x/sum(x)*100)
+phyloseq_nonCF15_aglo_trans_df <- psmelt(phyloseq_nonCF15_aglo_trans)
+nonCF15_dat.agr <- aggregate(Abundance ~ Phylum+Genotype+Medium, data=phyloseq_nonCF15_aglo_trans_df, FUN=mean)
+
+phyloseq_nonCF15_aglo_fam <- tax_glom(phyloseq_nonCF15, taxrank = "Family")
+phyloseq_nonCF15_aglo_fam_trans <- transform_sample_counts(phyloseq_nonCF15_aglo_fam, function(x) x/sum(x)*100)
+phyloseq_nonCF15_aglo_fam_trans_df <- psmelt(phyloseq_nonCF15_aglo_fam_trans)
+nonCF15_dat.agr_fam <- aggregate(Abundance ~ Family+Genotype+Medium, data=phyloseq_nonCF15_aglo_fam_trans_df, FUN=mean)
+#Use these averages for Table S8
+
+phyloseq_nonCF15_aglo_gen <- tax_glom(phyloseq_nonCF15, taxrank = "Genus")
+phyloseq_nonCF15_aglo_gen_trans <- transform_sample_counts(phyloseq_nonCF15_aglo_gen, function(x) x/sum(x)*100)
+phyloseq_nonCF15_aglo_gen_trans_df <- psmelt(phyloseq_nonCF15_aglo_gen_trans)
+nonCF15_dat.agr_gen <- aggregate(Abundance ~ Genus+Genotype+Medium, data=phyloseq_nonCF15_aglo_gen_trans_df, FUN=mean)
+#Use these averages for Table S9
+
