@@ -156,6 +156,17 @@ Shannon_meta.df_CF <- subset(Shannon_meta.df, Genotype == 'CF')
 Shannon_meta.df_CF_MiPro <- subset(Shannon_meta.df_CF, Medium == 'MiPro')
 Shannon_meta.df_nonCF <- subset(Shannon_meta.df, Genotype == 'nonCF')
 Shannon_meta.df_nonCF_MiPro <- subset(Shannon_meta.df_nonCF, Medium == 'MiPro')
+Shannon_meta.df_nonCF1 <- subset(Shannon_meta.df_nonCF, Day_of_passage == '1')
+Shannon_meta.df_nonCF2 <- subset(Shannon_meta.df_nonCF, Day_of_passage == '2')
+Shannon_meta.df_nonCF3 <- subset(Shannon_meta.df_nonCF, Day_of_passage == '3')
+Shannon_meta.df_nonCF4 <- subset(Shannon_meta.df_nonCF, Day_of_passage == '4')
+Shannon_meta.df_nonCF5 <- subset(Shannon_meta.df_nonCF, Day_of_passage == '5')
+Shannon_meta.df_CF1 <- subset(Shannon_meta.df_CF, Day_of_passage == '1')
+Shannon_meta.df_CF2 <- subset(Shannon_meta.df_CF, Day_of_passage == '2')
+Shannon_meta.df_CF3 <- subset(Shannon_meta.df_CF, Day_of_passage == '3')
+Shannon_meta.df_CF4 <- subset(Shannon_meta.df_CF, Day_of_passage == '4')
+Shannon_meta.df_CF5 <- subset(Shannon_meta.df_CF, Day_of_passage == '5')
+
 
 ggplot(Shannon_meta.df_MiProDay0, aes(y = Shannon, x = Genotype, color = Genotype))+
          geom_boxplot()+
@@ -208,15 +219,28 @@ summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_nonCF))
 #Mediummedian_CF  -0.56689    0.05622 219.00000 -10.083  < 2e-16 ***
 #Day_of_passage  -0.03965    0.01600 220.00000  -2.478    0.014 *  
 
-#Table S3
+#Table S4
 lmer_Shannon_CF_MiPro <- lmer(Shannon ~ Day_of_passage + (1|Patient), data=Shannon_meta.df_CF_MiPro)
 summary(lmer_Shannon_CF_MiPro)
 tab_model(lmer_Shannon_CF_MiPro)
 
-#Table S4
+#Table S5
 lmer_Shannon_nonCF_MiPro <- lmer(Shannon ~ Day_of_passage + (1|Patient), data=Shannon_meta.df_nonCF_MiPro)
 summary(lmer_Shannon_nonCF_MiPro)
 tab_model(lmer_Shannon_nonCF_MiPro)
+
+#Statistics within each day of passage, while accounting for patient (Figure S2
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_nonCF1))
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_nonCF2))
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_nonCF3))
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_nonCF4))
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_nonCF5))
+
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_CF1))
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_CF2))
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_CF3))
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_CF4))
+summary(lmer(Shannon ~ Medium + (1|Patient), data=Shannon_meta.df_CF5))
 
 #Load Chao1 data
 
@@ -270,12 +294,12 @@ summary(lmer(Chao1 ~ Medium + (1|Patient), data= Chao_meta.df_nonCF))
 #Day_of_passage   -53.25      16.31  220.00  -3.264  0.00127 ** 
   
   
-#Table S5
+#Table S6
 Chao_CF_MiPro <- lmer(Chao1 ~ Day_of_passage + (1|Patient), data=Chao_meta.df_CF_MiPro)
 summary(Chao_CF_MiPro)
 tab_model(Chao_CF_MiPro)
 
-#Table S6
+#Table S7
 Chao_nonCF_MiPro <- lmer(Chao1 ~ Day_of_passage + (1|Patient), data=Chao_meta.df_nonCF_MiPro)
 summary(Chao_nonCF_MiPro)
 tab_model(Chao_nonCF_MiPro)
@@ -446,24 +470,176 @@ adonis2(bray_CF ~ Prep*Patient*Medium*Day_of_passage, data=sampledf_CF, method='
 #Fig S1
 adonis2(bray_D0 ~ Genotype, data=sampledf_D0, method='bray')
 
-#PERMANOVA - Fig S2
+#PERMANOVA - Fig S4
 adonis2(jac_nonCF ~ Patient*Medium*Day_of_passage, data=sampledf_nonCF, method='jaccard')
 adonis2(jac_CF ~ Patient*Medium*Day_of_passage, data=sampledf_CF, method='jaccard')
 
 adonis2(mh_nonCF ~ Patient*Medium*Day_of_passage, data=sampledf_nonCF, method='horn')
 adonis2(mh_CF ~ Patient*Medium*Day_of_passage, data=sampledf_CF, method='horn')
 
-#PERMANOVA for CF5 samples to compare Prep - Fig S3
-PCoA_plot_bray3 <- plot_ordination(phyloseq_CF5, ordbc3, color = "Prep")+
+#Comparing prep across all days and media types
+PCoA_plot_bray4 <- plot_ordination(phyloseq_CF, ordbc4, color = "Prep")+
   scale_shape(solid=TRUE)+
-  facet_wrap(~Medium)+
+  facet_wrap(~Medium+Day_of_passage, ncol=6)+
   geom_point(size=3, alpha=0.5)+
   stat_ellipse(show.legend = TRUE)+
   scale_color_viridis_d()+
   theme_bw()
-PCoA_plot_bray3
+PCoA_plot_bray4
 
-adonis2(bray3 ~ Prep*Patient+Medium, data=sampledf_CF5, method='bray')
+adonis2(bray4 ~ Prep*Day_of_passage, data=sampledf_CF, method='bray')
+
+#Subsetting by cysteine and glycerol CF samples then making Day as character, so you can color by day (Figure S5)
+
+sampledf$ch_Day_of_passage <- paste0("Day_", sampledf$Day_of_passage)
+
+CF_phyloseq_chday <- phyloseq(otu_table(ASV_counts.df, taxa_are_rows=TRUE), 
+               sample_data(sampledf), 
+               tax_table(asv_taxm))
+
+phyloseq_CF <- subset_samples(CF_phyloseq_chday, Genotype == 'CF')
+phyloseq_CF_cysteine <- subset_samples(phyloseq_CF, Prep == 'cysteine')
+bray_CF_cysteine <- phyloseq::distance(phyloseq_CF_cysteine, "bray")
+sampledf_CF_cysteine <- data.frame(sample_data(phyloseq_CF_cysteine))
+ordbc_cysteine = ordinate(phyloseq_CF_cysteine, method = "PCoA", distance = "bray_CF_cysteine")
+
+PCoA_plot_cysteineCF <- plot_ordination(CF_phyloseq_chday, ordbc_cysteine, color = "ch_Day_of_passage")+
+  scale_shape(solid=TRUE)+
+  facet_wrap(~Medium, ncol=3)+
+  geom_point(size=3, alpha=0.5)+
+  stat_ellipse(show.legend = TRUE)+
+  scale_color_viridis_d()+
+  theme_bw()
+PCoA_plot_cysteineCF
+
+#Analysis within each medium: MiPro, cysteine
+phyloseq_CF_cysteine_MiPro <- subset_samples(phyloseq_CF_cysteine, Medium == 'MiPro')
+bray_CF_MiPro <- phyloseq::distance(phyloseq_CF_cysteine_MiPro, "bray")
+sampledf_CF_MiPro <- data.frame(sample_data(phyloseq_CF_cysteine_MiPro))
+adonis2(bray_CF_MiPro ~ Day_of_passage+Patient, data=sampledf_CF_MiPro, method='bray')
+
+#Df SumOfSqs      R2      F Pr(>F)    
+#Day_of_passage  1   0.3940 0.06668 2.6479  0.031 *  
+#Patient         3   2.6875 0.45483 6.0201  0.001 ***
+#Residual       19   2.8273 0.47849                  
+#Total          23   5.9089 1.00000        
+
+#Analysis within each medium: low-CF-MiPro, cysteine
+phyloseq_CF_cysteine_low <- subset_samples(phyloseq_CF_cysteine, Medium == 'low_CF')
+bray_CF_low <- phyloseq::distance(phyloseq_CF_cysteine_low, "bray")
+sampledf_CF_low <- data.frame(sample_data(phyloseq_CF_cysteine_low))
+adonis2(bray_CF_low ~ Day_of_passage+Patient, data=sampledf_CF_low, method='bray')
+
+ #Df SumOfSqs      R2      F Pr(>F)    
+#Day_of_passage  1   0.5331 0.08202 3.1798  0.010 ** 
+#Patient         3   2.7813 0.42793 5.5304  0.001 ***
+#Residual       19   3.1852 0.49006                  
+#Total          23   6.4996 1.00000  
+
+#Analysis within each medium: med-CF-MiPro, cysteine
+phyloseq_CF_cysteine_med <- subset_samples(phyloseq_CF_cysteine, Medium == 'median_CF')
+bray_CF_med <- phyloseq::distance(phyloseq_CF_cysteine_med, "bray")
+sampledf_CF_med <- data.frame(sample_data(phyloseq_CF_cysteine_med))
+adonis2(bray_CF_med ~ Day_of_passage+Patient, data=sampledf_CF_med, method='bray')
+
+#Df SumOfSqs      R2      F Pr(>F)   
+#Day_of_passage  1   1.0432 0.20237 6.3720  0.002 **
+#Patient         3   1.0012 0.19422 2.0385  0.029 * 
+#Residual       19   3.1106 0.60342                 
+#Total          23   5.1550 1.00000    
+
+#Now glycerol-prepped CF samples
+phyloseq_CF_glycerol <- subset_samples(phyloseq_CF, Prep == 'glycerol')
+bray_CF_glycerol <- phyloseq::distance(phyloseq_CF_glycerol, "bray")
+sampledf_CF_glycerol <- data.frame(sample_data(phyloseq_CF_glycerol))
+ordbc_glycerol = ordinate(phyloseq_CF_glycerol, method = "PCoA", distance = "bray_CF_glycerol")
+
+PCoA_plot_glycerolCF <- plot_ordination(CF_phyloseq_chday, ordbc_glycerol, color = "ch_Day_of_passage")+
+  scale_shape(solid=TRUE)+
+  facet_wrap(~Medium, ncol=3)+
+  geom_point(size=3, alpha=0.5)+
+  stat_ellipse(show.legend = TRUE)+
+  scale_color_viridis_d()+
+  theme_bw()
+PCoA_plot_glycerolCF
+
+#Analysis within each medium: MiPro, glycerol
+phyloseq_CF_glycerol_MiPro <- subset_samples(phyloseq_CF_glycerol, Medium == 'MiPro')
+bray_CF_glycerol_MiPro <- phyloseq::distance(phyloseq_CF_glycerol_MiPro, "bray")
+sampledf_CF_glycerol_MiPro <- data.frame(sample_data(phyloseq_CF_glycerol_MiPro))
+adonis2(bray_CF_glycerol_MiPro ~ Day_of_passage+Patient, data=sampledf_CF_glycerol_MiPro, method='bray')
+
+#Df SumOfSqs      R2      F Pr(>F)    
+#Day_of_passage  1   0.5371 0.06461 3.5546  0.001 ***
+#Patient         4   4.1492 0.49912 6.8645  0.001 ***
+#Residual       24   3.6267 0.43626                  
+#Total          29   8.3131 1.00000
+
+#Analysis within each medium: lowCF, glycerol
+phyloseq_CF_glycerol_low <- subset_samples(phyloseq_CF_glycerol, Medium == 'low_CF')
+bray_CF_glycerol_low <- phyloseq::distance(phyloseq_CF_glycerol_low, "bray")
+sampledf_CF_glycerol_low <- data.frame(sample_data(phyloseq_CF_glycerol_low))
+adonis2(bray_CF_glycerol_low ~ Day_of_passage+Patient, data=sampledf_CF_glycerol_low, method='bray')
+
+#Df SumOfSqs      R2      F Pr(>F)    
+#Day_of_passage  1   0.4842 0.04272 1.8703  0.037 *  
+#Patient         4   4.6361 0.40907 4.4773  0.001 ***
+#Residual       24   6.2129 0.54820                  
+#Total          29  11.3331 1.00000
+
+#Analysis within each medium: medCF, glycerol
+phyloseq_CF_glycerol_med <- subset_samples(phyloseq_CF_glycerol, Medium == 'median_CF')
+bray_CF_glycerol_med <- phyloseq::distance(phyloseq_CF_glycerol_med, "bray")
+sampledf_CF_glycerol_med <- data.frame(sample_data(phyloseq_CF_glycerol_med))
+adonis2(bray_CF_glycerol_med ~ Day_of_passage+Patient, data=sampledf_CF_glycerol_med, method='bray')
+
+#Df SumOfSqs      R2      F Pr(>F)    
+#Day_of_passage  1   0.3839 0.03499 1.8693  0.083 .  
+#Patient         4   5.6591 0.51579 6.8891  0.001 ***
+#Residual       24   4.9288 0.44922                  
+#Total          29  10.9718 1.00000  
+
+
+#Looking within CF-MiPro alone (low and median)
+
+phyloseq_nonCF_CFMiPro <- subset_samples(phyloseq_nonCF, Medium %in% c("low_CF", "median_CF"))
+bray_nonCF_CFMiPro <- phyloseq::distance(phyloseq_nonCF_CFMiPro, "bray")
+sampledf_nonCF_CFMiPro <- data.frame(sample_data(phyloseq_nonCF_CFMiPro))
+adonis2(bray_nonCF_CFMiPro ~ Medium*Day_of_passage*Patient, data=sampledf_nonCF_CFMiPro, method='bray')
+
+#Df SumOfSqs      R2       F Pr(>F)    
+#Medium                          1    0.370 0.00858  3.3621  0.007 ** 
+#Day_of_passage                  1    2.381 0.05523 21.6406  0.001 ***
+#Patient                        12   21.121 0.49003 15.9996  0.001 ***
+#Medium:Day_of_passage           1    0.054 0.00126  0.4935  0.858    
+#Medium:Patient                 12    1.863 0.04322  1.4111  0.011 *  
+#Day_of_passage:Patient         12    5.265 0.12217  3.9888  0.001 ***
+#Medium:Day_of_passage:Patient  12    0.607 0.01408  0.4597  1.000    
+#Residual                      104   11.441 0.26544                   
+#Total                         155   43.101 1.00000                   
+#---
+#Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
+phyloseq_CF_CFMiPro <- subset_samples(phyloseq_CF, Medium %in% c("low_CF", "median_CF"))
+bray_CF_CFMiPro <- phyloseq::distance(phyloseq_CF_CFMiPro, "bray")
+sampledf_CF_CFMiPro <- data.frame(sample_data(phyloseq_CF_CFMiPro))
+adonis2(bray_CF_CFMiPro ~ Medium*Day_of_passage*Patient, data=sampledf_CF_CFMiPro, method='bray')
+
+#Df SumOfSqs      R2       F Pr(>F)    
+#Medium                          1    0.288 0.00752  1.6932  0.079 .  
+#Day_of_passage                  1    1.123 0.02933  6.6046  0.001 ***
+#Patient                         8   15.998 0.41793 11.7644  0.001 ***
+#Medium:Day_of_passage           1    0.270 0.00705  1.5877  0.093 .  
+#Medium:Patient                  8    2.112 0.05518  1.5534  0.012 *  
+#Day_of_passage:Patient          8    5.047 0.13184  3.7113  0.001 ***
+#Medium:Day_of_passage:Patient   8    1.203 0.03143  0.8847  0.746    
+#Residual                       72   12.239 0.31972                   
+#Total                         107   38.280 1.00000                   
+#---
+#Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+
 
 ```
 
