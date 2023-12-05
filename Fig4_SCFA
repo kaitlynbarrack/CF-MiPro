@@ -114,5 +114,24 @@ summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_nonCF5_
 summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_nonCF5_buty))
 summary(lmer(Concentration ~ Medium + (1|Patient), data=SCFA_metadata.df_nonCF5_prp))
 
+#Plotting Day 0 SCFA
+ggplot(SCFA_metadata.df_D0_MiPro, aes(y = Concentration, x = Metabolite, color = Genotype))+
+         geom_boxplot()+
+         #geom_jitter()+
+         #geom_point(position = position_jitterdodge(dodge.width = 0.75))+
+         facet_grid()+
+         scale_fill_viridis_d()+
+  labs(y="Concentration(ng/mL) normalized to stool weight", x="Metabolite")+
+  scale_color_viridis_d()+
+   theme_linedraw()+
+   theme(strip.text.y = element_text(size = 15))
+
+SCFA_metadata.df_D0_MiPro_acetate <- subset(SCFA_metadata.df_D0_MiPro, Metabolite == 'Acetate')
+SCFA_metadata.df_D0_MiPro_butyrate <- subset(SCFA_metadata.df_D0_MiPro, Metabolite == 'Butyrate')
+SCFA_metadata.df_D0_MiPro_propionate <- subset(SCFA_metadata.df_D0_MiPro, Metabolite == 'Propionate')
+
+summary(lm(Concentration ~ Genotype, data=SCFA_metadata.df_D0_MiPro_acetate))
+summary(lm(Concentration ~ Genotype, data=SCFA_metadata.df_D0_MiPro_butyrate))
+summary(lm(Concentration ~ Genotype, data=SCFA_metadata.df_D0_MiPro_propionate))
 
 ```
